@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="AI Real-time Push-up Counter with Form Feedback">
     <title>PushUp AI • Real-time Counter</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
@@ -12,32 +11,17 @@
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
-        
-        body {
-            font-family: 'Inter', system_ui, sans-serif;
+        body { font-family: 'Inter', system_ui, sans-serif; }
+        .title-font { font-family: 'Space Grotesk', sans-serif; }
+        #video-container { position: relative; background: #000; }
+        #output-canvas { 
+            position: absolute; top: 0; left: 0; 
+            width: 100%; height: 100%; z-index: 10; pointer-events: none;
+            transform: scaleX(-1);
         }
-        .title-font {
-            font-family: 'Space Grotesk', sans-serif;
-        }
-        #video-container {
-            position: relative;
-            background: #000;
-        }
-        #output-canvas {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: 10;
-            pointer-events: none;
-        }
-        .rep-complete {
-            animation: pop 0.4s ease-out;
-        }
-        @keyframes pop {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.18); }
-            100% { transform: scale(1); }
-        }
+        video { transform: scaleX(-1); }
+        .rep-complete { animation: pop 0.4s ease-out; }
+        @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.25); } 100% { transform: scale(1); } }
     </style>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen">
@@ -50,48 +34,43 @@
                     <p class="text-zinc-400 text-sm -mt-1">Real-time Form Coach</p>
                 </div>
             </div>
+            <button onclick="showInstructions()" class="px-5 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-2xl text-sm font-medium">How to Use</button>
         </div>
 
         <div class="p-6">
-            <!-- Stats -->
             <div class="grid grid-cols-3 gap-4 mb-6">
                 <div class="bg-zinc-900 rounded-3xl p-5 text-center">
                     <div class="text-4xl font-bold text-yellow-400" id="total-reps">0</div>
-                    <div class="text-zinc-400 text-sm mt-1">TOTAL</div>
+                    <div class="text-zinc-400 text-sm mt-1">TOTAL REPS</div>
                 </div>
                 <div class="bg-zinc-900 rounded-3xl p-5 text-center">
                     <div class="text-4xl font-bold text-emerald-400" id="timer">00:00</div>
                     <div class="text-zinc-400 text-sm mt-1">TIME</div>
                 </div>
                 <div class="bg-zinc-900 rounded-3xl p-5 text-center">
-                    <div class="text-4xl font-bold text-sky-400" id="current-phase">UP</div>
+                    <div class="text-4xl font-bold text-sky-400" id="current-phase">READY</div>
                     <div class="text-zinc-400 text-sm mt-1">PHASE</div>
                 </div>
             </div>
 
-            <!-- Video -->
             <div id="video-container" class="relative rounded-3xl overflow-hidden shadow-2xl aspect-video mb-6 border border-zinc-800">
                 <video id="video" class="w-full h-full object-cover" autoplay playsinline muted></video>
                 <canvas id="output-canvas" class="w-full h-full"></canvas>
+                <div id="form-feedback" class="absolute top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl text-sm font-semibold hidden flex items-center gap-x-2 shadow-xl z-20"></div>
                 
-                <div id="form-feedback" class="absolute top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl text-sm font-semibold hidden flex items-center gap-x-2 shadow-xl"></div>
-                
-                <div class="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-xl px-10 py-4 rounded-3xl border border-yellow-500/30 flex items-center gap-x-4">
+                <div class="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-xl px-10 py-4 rounded-3xl border border-yellow-500/30 flex items-center gap-x-4 z-20">
                     <div class="text-yellow-400 text-sm font-medium tracking-widest">REPS</div>
                     <div id="rep-counter" class="text-7xl font-bold tabular-nums text-white leading-none rep-complete">0</div>
                 </div>
             </div>
 
-            <!-- Controls -->
             <div class="flex gap-4 mb-8">
-                <button onclick="toggleCamera()" id="start-btn"
-                        class="flex-1 bg-yellow-500 hover:bg-yellow-400 transition-all text-black font-semibold text-lg py-6 rounded-3xl flex items-center justify-center gap-x-3">
+                <button onclick="toggleCamera()" id="start-btn" class="flex-1 bg-yellow-500 hover:bg-yellow-400 active:bg-yellow-600 transition-all text-black font-semibold text-lg py-6 rounded-3xl flex items-center justify-center gap-x-3 shadow-lg">
                     <span id="btn-text">START CAMERA</span>
                 </button>
                 <button onclick="resetSession()" class="px-8 bg-zinc-900 hover:bg-zinc-800 rounded-3xl text-sm font-medium">RESET</button>
             </div>
 
-            <!-- History -->
             <div class="bg-zinc-900 rounded-3xl p-6">
                 <h2 class="font-semibold text-lg mb-4">Recent Reps</h2>
                 <div id="history-list" class="space-y-3 max-h-64 overflow-auto text-sm"></div>
@@ -103,15 +82,12 @@
         let pose, camera, videoElement, canvasElement, canvasCtx;
         let isCameraRunning = false;
         let totalReps = 0;
-        let isDown = false;
+        let stage = "up"; // "up" or "down"
         let lastRepTime = 0;
         let history = [];
         let timerInterval, startTime;
 
-        const LEFT_SHOULDER = 11, RIGHT_SHOULDER = 12;
-        const LEFT_ELBOW = 13, RIGHT_ELBOW = 14;
-        const LEFT_WRIST = 15, RIGHT_WRIST = 16;
-        const LEFT_HIP = 23, RIGHT_HIP = 24;
+        const LEFT_SHOULDER = 11, LEFT_ELBOW = 13, LEFT_WRIST = 15, LEFT_HIP = 23;
 
         function calculateAngle(a, b, c) {
             const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
@@ -127,7 +103,6 @@
             if (!landmarks || !canvasCtx) return;
             canvasCtx.save();
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            
             window.drawConnectors(canvasCtx, landmarks, window.POSE_CONNECTIONS, {color: '#eab308', lineWidth: 5});
             window.drawLandmarks(canvasCtx, landmarks, {color: '#fff', lineWidth: 2, radius: 6});
             canvasCtx.restore();
@@ -135,22 +110,20 @@
 
         function updateFormFeedback(isGood, message) {
             const el = document.getElementById('form-feedback');
-            el.className = `absolute top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl text-sm font-semibold flex items-center gap-x-2 shadow-xl ${isGood ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`;
             el.innerHTML = isGood ? `✅ ${message}` : `⚠️ ${message}`;
+            el.className = `absolute top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl text-sm font-semibold flex items-center gap-x-2 shadow-xl z-20 ${isGood ? 'bg-emerald-600' : 'bg-red-600'}`;
             el.classList.remove('hidden');
-            setTimeout(() => el.classList.add('hidden'), 3000);
+            setTimeout(() => el.classList.add('hidden'), 2500);
         }
 
         function speak(text) {
-            if ('speechSynthesis' in window) {
-                speechSynthesis.speak(new SpeechSynthesisUtterance(text));
-            }
+            if ('speechSynthesis' in window) speechSynthesis.speak(new SpeechSynthesisUtterance(text));
         }
 
         function renderHistory() {
             const container = document.getElementById('history-list');
             container.innerHTML = history.length === 0 
-                ? `<p class="text-zinc-500 text-center py-8">No reps recorded yet...</p>`
+                ? `<p class="text-zinc-500 text-center py-8">No reps yet. Start pushing!</p>`
                 : history.map(h => `
                     <div class="flex justify-between bg-zinc-800 px-5 py-3 rounded-2xl">
                         <div>Rep #${h.rep} <span class="text-xs text-zinc-400">${h.time}</span></div>
@@ -163,52 +136,58 @@
             if (timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(() => {
                 const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                document.getElementById('timer').textContent = 
-                    `${Math.floor(elapsed/60).toString().padStart(2,'0')}:${(elapsed%60).toString().padStart(2,'0')}`;
+                const min = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                const sec = (elapsed % 60).toString().padStart(2, '0');
+                document.getElementById('timer').textContent = `${min}:${sec}`;
             }, 1000);
         }
 
         function detectPushUp(landmarks) {
             if (!landmarks) return;
-            
+
             const ls = getLandmark(landmarks, LEFT_SHOULDER);
             const le = getLandmark(landmarks, LEFT_ELBOW);
             const lw = getLandmark(landmarks, LEFT_WRIST);
-            const lh = getLandmark(landmarks, LEFT_HIP);
-            
-            if (!ls || !le || !lw || !lh) return;
+
+            if (!ls || !le || !lw) return;
 
             const elbowAngle = calculateAngle(ls, le, lw);
-            const hipShoulderDiff = Math.abs(lh.y - ls.y);
+            const wristYRelative = lw.y - ls.y; // positive = lower
+
+            console.log(`Elbow Angle: ${elbowAngle.toFixed(1)}° | Wrist Depth: ${wristYRelative.toFixed(3)}`);
 
             const now = Date.now();
 
-            if (!isDown && elbowAngle < 115) {
-                isDown = true;
+            // DOWN detection
+            if (stage === "up" && elbowAngle < 125) {
+                stage = "down";
                 document.getElementById('current-phase').textContent = "↓ DOWN";
                 document.getElementById('current-phase').className = "text-4xl font-bold text-orange-400";
             }
 
-            if (isDown && elbowAngle > 165) {
-                isDown = false;
-                if (now - lastRepTime > 700) {
+            // UP detection + count rep
+            if (stage === "down" && elbowAngle > 155) {
+                stage = "up";
+                if (now - lastRepTime > 600) {  // reduced debounce
                     totalReps++;
                     lastRepTime = now;
 
-                    const timeStr = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                    history.unshift({rep: totalReps, time: timeStr, quality: hipShoulderDiff < 0.09 ? 'good' : 'fair'});
+                    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const quality = (wristYRelative > 0.18) ? 'good' : 'fair';
+
+                    history.unshift({ rep: totalReps, time: timeStr, quality });
                     if (history.length > 8) history.pop();
 
                     document.getElementById('rep-counter').textContent = totalReps;
                     document.getElementById('total-reps').textContent = totalReps;
                     renderHistory();
 
-                    if (hipShoulderDiff < 0.09) {
-                        updateFormFeedback(true, "Great Rep!");
-                        speak("Good push up");
+                    if (quality === 'good') {
+                        updateFormFeedback(true, "Excellent Rep!");
+                        speak("Great push up!");
                     } else {
-                        updateFormFeedback(false, "Keep body straight");
-                        speak("Body straighter");
+                        updateFormFeedback(false, "Go lower next time");
+                        speak("Lower your chest");
                     }
                 }
                 document.getElementById('current-phase').textContent = "↑ UP";
@@ -229,21 +208,19 @@
                 canvasElement = document.getElementById('output-canvas');
                 canvasCtx = canvasElement.getContext('2d');
 
-                pose = new Pose({
-                    locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-                });
+                pose = new Pose({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
 
                 pose.setOptions({
                     modelComplexity: 1,
                     smoothLandmarks: true,
-                    minDetectionConfidence: 0.65,
-                    minTrackingConfidence: 0.65
+                    minDetectionConfidence: 0.6,
+                    minTrackingConfidence: 0.6
                 });
 
                 pose.onResults(onResults);
 
                 camera = new Camera(videoElement, {
-                    onFrame: async () => await pose.send({image: videoElement}),
+                    onFrame: async () => await pose.send({ image: videoElement }),
                     width: 640,
                     height: 480
                 });
@@ -260,9 +237,9 @@
                 document.getElementById('start-btn').classList.add('!bg-red-500', '!text-white');
                 startTimer();
 
-            } catch (e) {
-                alert("Camera access failed. Please allow camera permission and try again.");
-                console.error(e);
+            } catch (err) {
+                alert("Camera error. Please allow permission.");
+                console.error(err);
             }
         }
 
@@ -272,29 +249,27 @@
             isCameraRunning = false;
             document.getElementById('btn-text').textContent = "START CAMERA";
             document.getElementById('start-btn').classList.remove('!bg-red-500', '!text-white');
+            if (timerInterval) clearInterval(timerInterval);
         }
 
-        function toggleCamera() {
-            if (isCameraRunning) stopCamera();
-            else startCamera();
-        }
+        function toggleCamera() { isCameraRunning ? stopCamera() : startCamera(); }
 
         function resetSession() {
             if (confirm("Reset everything?")) {
-                totalReps = 0;
-                history = [];
+                totalReps = 0; stage = "up"; history = [];
                 document.getElementById('rep-counter').textContent = '0';
                 document.getElementById('total-reps').textContent = '0';
                 document.getElementById('timer').textContent = '00:00';
+                document.getElementById('current-phase').textContent = 'READY';
                 renderHistory();
             }
         }
 
-        // Init
-        window.onload = () => {
-            renderHistory();
-            console.log("%cPushUp AI loaded successfully! Click START CAMERA", "color:#eab308;font-size:14px");
-        };
+        function showInstructions() {
+            alert("1. Face camera in push-up position\n2. Full upper body visible\n3. Lower until elbows ~90°\n4. Push back up fully");
+        }
+
+        window.onload = () => renderHistory();
     </script>
 </body>
 </html>
